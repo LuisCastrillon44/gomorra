@@ -1,3 +1,5 @@
+using Api;
+using Application;
 using Infrastructure;
 using Infrastructure.Database;
 
@@ -17,7 +19,11 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod());
 });
 
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ManejadorExcepciones>();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -25,15 +31,21 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-DatabaseMigrator.Migrate(DependencyInjection.GetConnectionString(app.Configuration));
+DatabaseMigrator.Migrate(Infrastructure.DependencyInjection.GetConnectionString(app.Configuration));
+
+app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
-
-app.UseHttpsRedirection();
+else
+{
+    // En desarrollo el front llama a http://localhost:5286. Si redirigiéramos a https, el navegador
+    // rechazaría la respuesta 307 (no lleva cabeceras CORS) y las llamadas fallarían con "CORS error".
+    app.UseHttpsRedirection();
+}
 
 app.UseCors(FrontendCorsPolicy);
 

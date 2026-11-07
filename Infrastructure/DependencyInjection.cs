@@ -1,6 +1,14 @@
 using Application.Abstractions.Data;
+using Application.Caja;
+using Application.Categorias;
+using Application.Inventario;
+using Application.Productos;
 using Dapper;
+using Infrastructure.Caja;
+using Infrastructure.Categorias;
 using Infrastructure.Data;
+using Infrastructure.Inventario;
+using Infrastructure.Productos;
 using Infrastructure.Database;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +29,11 @@ public static class DependencyInjection
 
         services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
         services.AddSingleton<IDbConnectionFactory, NpgsqlConnectionFactory>();
+
+        services.AddScoped<ICategoriaRepository, CategoriaRepository>();
+        services.AddScoped<IProductoRepository, ProductoRepository>();
+        services.AddScoped<IInventarioRepository, InventarioRepository>();
+        services.AddScoped<ICajaRepository, CajaRepository>();
 
         services.AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>("database");
