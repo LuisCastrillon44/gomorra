@@ -48,8 +48,8 @@ public static class DependencyInjection
         {
             throw new InvalidOperationException(
                 $"Falta la cadena de conexión 'ConnectionStrings:{ConnectionStringName}'. " +
-                "En desarrollo configúrala con 'dotnet user-secrets' en el proyecto Api; " +
-                $"en producción con la variable de entorno 'ConnectionStrings__{ConnectionStringName}'.");
+                "Configúrala con la variable de entorno " +
+                $"'ConnectionStrings__{ConnectionStringName}' (en local: variable de usuario de Windows; en Render: Environment).");
         }
 
         return connectionString;
