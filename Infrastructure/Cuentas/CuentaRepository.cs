@@ -11,6 +11,7 @@ namespace Infrastructure.Cuentas;
 
 internal sealed class CuentaRepository(IDbConnectionFactory connectionFactory) : ICuentaRepository
 {
+    // Las cuentas son consumo en el local: se cobran a precio_local.
     // Abierta: total al precio actual. Pagada: el total de su venta.
     private const string SelectCuenta = """
         SELECT c.id, c.caja_id, c.nombre, c.estado, c.venta_id, c.abierta_en, c.cerrada_en,
@@ -19,7 +20,7 @@ internal sealed class CuentaRepository(IDbConnectionFactory connectionFactory) :
         FROM gomorra.cuentas c
         LEFT JOIN gomorra.ventas v ON v.id = c.venta_id
         LEFT JOIN LATERAL (
-            SELECT SUM(d.cantidad * p.precio_venta) AS total, SUM(d.cantidad)::int AS articulos
+            SELECT SUM(d.cantidad * p.precio_local) AS total, SUM(d.cantidad)::int AS articulos
             FROM gomorra.cuentas_detalle d
             JOIN gomorra.productos p ON p.id = d.producto_id
             WHERE d.cuenta_id = c.id
@@ -28,7 +29,7 @@ internal sealed class CuentaRepository(IDbConnectionFactory connectionFactory) :
 
     private const string SelectItems = """
         SELECT d.cuenta_id, d.producto_id, p.nombre, p.presentacion_ml, p.imagen_url, d.cantidad,
-               p.precio_venta AS precio_unitario, d.cantidad * p.precio_venta AS subtotal
+               p.precio_local AS precio_unitario, d.cantidad * p.precio_local AS subtotal
         FROM gomorra.cuentas_detalle d
         JOIN gomorra.productos p ON p.id = d.producto_id
         """;

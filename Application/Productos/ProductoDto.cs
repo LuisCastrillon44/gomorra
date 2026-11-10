@@ -10,7 +10,7 @@ public sealed class ProductoDto
     public string Nombre { get; init; } = string.Empty;
     public int? PresentacionMl { get; init; }
     public decimal PrecioVenta { get; init; }
-    public decimal Costo { get; init; }
+    public decimal PrecioLocal { get; init; }
     public string? ImagenUrl { get; init; } // TEMPORAL
     public bool Activo { get; init; }
     public DateTime CreadoEn { get; init; }
@@ -34,8 +34,8 @@ public sealed class GuardarProductoRequest
     [Range(0, PrecioMaximo, ErrorMessage = "El precio de venta no puede ser negativo.")]
     public decimal PrecioVenta { get; init; }
 
-    [Range(0, PrecioMaximo, ErrorMessage = "El costo no puede ser negativo.")]
-    public decimal Costo { get; init; }
+    [Range(0, PrecioMaximo, ErrorMessage = "El precio en el local no puede ser negativo.")]
+    public decimal PrecioLocal { get; init; }
 
     /// <summary>TEMPORAL: URL externa de la imagen (http/https). Vacía = sin imagen.</summary>
     [StringLength(500, ErrorMessage = "La URL de la imagen admite máximo 500 caracteres.")]

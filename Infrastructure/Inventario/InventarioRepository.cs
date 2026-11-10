@@ -10,7 +10,7 @@ internal sealed class InventarioRepository(IDbConnectionFactory connectionFactor
     // Un producto sin fila en inventario cuenta como stock 0 y mínimo 0.
     private const string Select = """
         SELECT p.id AS producto_id, p.nombre, p.categoria_id, c.nombre AS categoria_nombre,
-               p.presentacion_ml, p.imagen_url, p.precio_venta, p.activo,
+               p.presentacion_ml, p.imagen_url, p.precio_venta, p.precio_local, p.activo,
                COALESCE(i.stock, 0) AS stock,
                COALESCE(i.stock_minimo, 0) AS stock_minimo,
                COALESCE(ec.en_cuentas, 0) AS en_cuentas,

@@ -7,7 +7,8 @@ public sealed class Producto
     public string Nombre { get; set; } = string.Empty;
     public int? PresentacionMl { get; set; }
     public decimal PrecioVenta { get; set; }
-    public decimal Costo { get; set; }
+    /// <summary>Precio cuando el producto se consume en el local.</summary>
+    public decimal PrecioLocal { get; set; }
 
     /// <summary>TEMPORAL: URL externa de la imagen, hasta que exista la subida de imágenes.</summary>
     public string? ImagenUrl { get; set; }

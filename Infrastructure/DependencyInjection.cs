@@ -11,6 +11,7 @@ using Application.Categorias;
 using Application.Cuentas;
 using Application.Inventario;
 using Application.Productos;
+using Application.Ventas;
 using Dapper;
 using Infrastructure.Caja;
 using Infrastructure.Categorias;
@@ -18,6 +19,7 @@ using Infrastructure.Cuentas;
 using Infrastructure.Data;
 using Infrastructure.Inventario;
 using Infrastructure.Productos;
+using Infrastructure.Ventas;
 using Infrastructure.Database;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IInventarioRepository, InventarioRepository>();
         services.AddScoped<ICajaRepository, CajaRepository>();
         services.AddScoped<ICuentaRepository, CuentaRepository>();
+        services.AddScoped<IVentasRepository, VentasRepository>();
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 

@@ -39,7 +39,7 @@ internal static class OperacionesCaja
         DbConnection connection, DbTransaction transaction, long productoId, CancellationToken cancellationToken)
     {
         var producto = await connection.QuerySingleOrDefaultAsync<ProductoVenta>(new CommandDefinition(
-            "SELECT nombre, precio_venta, activo FROM gomorra.productos WHERE id = @Id FOR SHARE",
+            "SELECT nombre, precio_venta, precio_local, activo FROM gomorra.productos WHERE id = @Id FOR SHARE",
             new { Id = productoId }, transaction, cancellationToken: cancellationToken))
             ?? throw new NoEncontradoException($"No existe el producto {productoId}.");
 
@@ -87,7 +87,7 @@ internal static class OperacionesCaja
             : $"No hay suficiente stock de {producto}: solo hay {Unidades(Math.Max(disponible, 0))}.");
 
     /// <summary>
-    /// Registra la venta (precio actual de cada producto) y descuenta el inventario. La caja ya debe estar bloqueada.
+    /// Registra la venta (precio actual de cada producto: el del local si es el cobro de una cuenta) y descuenta el inventario. La caja ya debe estar bloqueada.
     /// Valida contra lo disponible: stock menos lo pedido en cuentas abiertas, sin contar <paramref name="cuentaId"/>
     /// (al cobrar una cuenta, lo suyo ya estaba apartado).
     /// </summary>
@@ -113,7 +113,8 @@ internal static class OperacionesCaja
                 throw SinDisponible(producto.Nombre, stock - enCuentas, enCuentas);
             }
 
-            lineas.Add((item, producto.PrecioVenta, stock));
+            // Cobro de cuenta = consumo en el local: se usa el precio del local.
+            lineas.Add((item, cuentaId is null ? producto.PrecioVenta : producto.PrecioLocal, stock));
         }
 
         var total = lineas.Sum(l => l.Item.Cantidad * l.Precio);
@@ -208,6 +209,7 @@ internal static class OperacionesCaja
     {
         public string Nombre { get; init; } = string.Empty;
         public decimal PrecioVenta { get; init; }
+        public decimal PrecioLocal { get; init; }
         public bool Activo { get; init; }
     }
 }

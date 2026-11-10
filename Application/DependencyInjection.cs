@@ -5,6 +5,7 @@ using Application.Categorias;
 using Application.Cuentas;
 using Application.Inventario;
 using Application.Productos;
+using Application.Ventas;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application;
@@ -18,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<InventarioService>();
         services.AddScoped<CajaService>();
         services.AddScoped<CuentaService>();
+        services.AddScoped<VentasService>();
         services.AddScoped<UsuarioService>();
         services.AddScoped<AutenticacionService>();
 

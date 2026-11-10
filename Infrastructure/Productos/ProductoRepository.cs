@@ -10,7 +10,7 @@ internal sealed class ProductoRepository(IDbConnectionFactory connectionFactory)
 {
     private const string Select = """
         SELECT p.id, p.categoria_id, c.nombre AS categoria_nombre, p.nombre, p.presentacion_ml,
-               p.precio_venta, p.costo, p.imagen_url, p.activo, p.creado_en, p.actualizado_en
+               p.precio_venta, p.precio_local, p.imagen_url, p.activo, p.creado_en, p.actualizado_en
         FROM gomorra.productos p
         JOIN gomorra.categorias c ON c.id = p.categoria_id
         """;
@@ -59,9 +59,9 @@ internal sealed class ProductoRepository(IDbConnectionFactory connectionFactory)
     {
         const string sql = """
             INSERT INTO gomorra.productos
-                (categoria_id, nombre, presentacion_ml, precio_venta, costo, imagen_url, activo)
+                (categoria_id, nombre, presentacion_ml, precio_venta, precio_local, imagen_url, activo)
             VALUES
-                (@CategoriaId, @Nombre, @PresentacionMl, @PrecioVenta, @Costo, @ImagenUrl, @Activo)
+                (@CategoriaId, @Nombre, @PresentacionMl, @PrecioVenta, @PrecioLocal, @ImagenUrl, @Activo)
             RETURNING id
             """;
 
@@ -78,7 +78,7 @@ internal sealed class ProductoRepository(IDbConnectionFactory connectionFactory)
                 nombre = @Nombre,
                 presentacion_ml = @PresentacionMl,
                 precio_venta = @PrecioVenta,
-                costo = @Costo,
+                precio_local = @PrecioLocal,
                 imagen_url = @ImagenUrl,
                 activo = @Activo,
                 actualizado_en = now()

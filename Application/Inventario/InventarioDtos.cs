@@ -22,6 +22,9 @@ public sealed class InventarioItemDto
     public int? PresentacionMl { get; init; }
     public string? ImagenUrl { get; init; }
     public decimal PrecioVenta { get; init; }
+
+    /// <summary>Precio cuando se consume en el local (lo que se cobra en cuentas).</summary>
+    public decimal PrecioLocal { get; init; }
     public bool Activo { get; init; }
     public int Stock { get; init; }
     public int StockMinimo { get; init; }
