@@ -1,5 +1,6 @@
 using Api;
 using Application;
+using Application.Usuarios;
 using Infrastructure;
 using Infrastructure.Database;
 
@@ -21,24 +22,36 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSeguridad(
+    Infrastructure.DependencyInjection.GetJwtOptions(builder.Configuration),
+    Infrastructure.DependencyInjection.GetAdminOptions(builder.Configuration));
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ManejadorExcepciones>();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApiConBearer();
 
 var app = builder.Build();
 
 DatabaseMigrator.Migrate(Infrastructure.DependencyInjection.GetConnectionString(app.Configuration));
+
+// Crea el administrador configurado en Admin:Usuario / Admin:Clave (user-secrets o variables de entorno) si todavía no existe.
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    if (await scope.ServiceProvider.GetRequiredService<UsuarioService>().SembrarAdministradorAsync(CancellationToken.None))
+    {
+        app.Logger.LogInformation("Administrador inicial creado.");
+    }
+}
 
 app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 }
 else
 {
@@ -49,10 +62,11 @@ else
 
 app.UseCors(FrontendCorsPolicy);
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();

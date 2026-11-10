@@ -1,10 +1,10 @@
 using System.Data.Common;
-using System.Globalization;
 using Application.Abstractions.Data;
 using Application.Caja;
 using Application.Common;
 using Dapper;
 using Infrastructure.Data;
+using static Infrastructure.Caja.OperacionesCaja;
 
 namespace Infrastructure.Caja;
 
@@ -20,8 +20,8 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
                c.efectivo_contado, c.nota_cierre
         FROM gomorra.cajas c
         CROSS JOIN LATERAL (
-            SELECT COALESCE(SUM(total) FILTER (WHERE metodo_pago = 'efectivo'), 0) AS ventas_efectivo,
-                   COALESCE(SUM(total) FILTER (WHERE metodo_pago = 'transferencia'), 0) AS ventas_transferencia,
+            SELECT COALESCE(SUM(pago_efectivo), 0) AS ventas_efectivo,
+                   COALESCE(SUM(pago_transferencia), 0) AS ventas_transferencia,
                    COUNT(*)::int AS cantidad_ventas
             FROM gomorra.ventas
             WHERE caja_id = c.id AND NOT anulada
@@ -35,7 +35,7 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
         """;
 
     private const string SelectVenta = """
-        SELECT id, caja_id, metodo_pago, total, anulada, anulada_en, creado_en
+        SELECT id, caja_id, metodo_pago, total, pago_efectivo, pago_transferencia, anulada, anulada_en, creado_en
         FROM gomorra.ventas
         """;
 
@@ -55,8 +55,6 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
     {
         ["cajas_una_abierta"] = "Ya hay una caja abierta. Ciérrala antes de abrir otra.",
     };
-
-    private static readonly CultureInfo Colombia = CultureInfo.GetCultureInfo("es-CO");
 
     // ---------- Cajas ----------
 
@@ -100,6 +98,18 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
 
         // FOR UPDATE espera a que terminen las ventas en curso (que toman la caja con FOR SHARE).
         await BloquearCajaAbiertaAsync(connection, transaction, id, "FOR UPDATE", cancellationToken);
+
+        // Las cuentas abiertas son ventas pendientes: si se cerrara la caja, el arqueo no cuadraría.
+        var abiertas = (await connection.QueryAsync<string>(new CommandDefinition(
+            "SELECT nombre FROM gomorra.cuentas WHERE caja_id = @Id AND estado = 'abierta' ORDER BY abierta_en",
+            new { Id = id }, transaction, cancellationToken: cancellationToken))).AsList();
+        if (abiertas.Count > 0)
+        {
+            var cuantas = abiertas.Count == 1 ? "Hay 1 cuenta abierta" : $"Hay {abiertas.Count} cuentas abiertas";
+            throw new ConflictoException(
+                $"{cuantas} ({string.Join(", ", abiertas)}). Cóbralas o anúlalas antes de cerrar la caja.");
+        }
+
         var caja = (await ObtenerAsync(connection, transaction, id, cancellationToken))!;
 
         await connection.ExecuteAsync(new CommandDefinition(
@@ -154,62 +164,15 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
     }
 
     public async Task<long> RegistrarVentaAsync(
-        long cajaId, string metodoPago, IReadOnlyList<ItemVenta> items, CancellationToken cancellationToken)
+        long cajaId, Pago pago, IReadOnlyList<ItemVenta> items, CancellationToken cancellationToken)
     {
         await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         // FOR SHARE: varias ventas pueden ir a la vez, pero el cierre espera a que terminen.
         await BloquearCajaAbiertaAsync(connection, transaction, cajaId, "FOR SHARE", cancellationToken);
-
-        // Primero se validan todos los productos y su stock (bloqueando cada fila, en orden de id).
-        var lineas = new List<(ItemVenta Item, decimal Precio, int StockActual)>();
-        foreach (var item in items)
-        {
-            var producto = await connection.QuerySingleOrDefaultAsync<ProductoVenta>(
-                new CommandDefinition(
-                    "SELECT nombre, precio_venta, activo FROM gomorra.productos WHERE id = @Id FOR SHARE",
-                    new { Id = item.ProductoId }, transaction, cancellationToken: cancellationToken))
-                ?? throw new NoEncontradoException($"No existe el producto {item.ProductoId}.");
-
-            if (!producto.Activo)
-            {
-                throw new ConflictoException($"{producto.Nombre} está inactivo y no se puede vender.");
-            }
-
-            var stock = await BloquearStockAsync(connection, transaction, item.ProductoId, cancellationToken);
-            if (item.Cantidad > stock)
-            {
-                throw new ConflictoException(
-                    $"No hay suficiente stock de {producto.Nombre}: solo hay {Unidades(stock)}.");
-            }
-
-            lineas.Add((item, producto.PrecioVenta, stock));
-        }
-
-        var total = lineas.Sum(l => l.Item.Cantidad * l.Precio);
-        var ventaId = await connection.ExecuteScalarAsync<long>(new CommandDefinition(
-            """
-            INSERT INTO gomorra.ventas (caja_id, metodo_pago, total)
-            VALUES (@CajaId, @MetodoPago, @Total)
-            RETURNING id
-            """,
-            new { CajaId = cajaId, MetodoPago = metodoPago, Total = total },
-            transaction, cancellationToken: cancellationToken));
-
-        foreach (var (item, precio, stockActual) in lineas)
-        {
-            await connection.ExecuteAsync(new CommandDefinition(
-                """
-                INSERT INTO gomorra.ventas_detalle (venta_id, producto_id, cantidad, precio_unitario)
-                VALUES (@VentaId, @ProductoId, @Cantidad, @Precio)
-                """,
-                new { VentaId = ventaId, item.ProductoId, item.Cantidad, Precio = precio },
-                transaction, cancellationToken: cancellationToken));
-
-            await MoverStockAsync(
-                connection, transaction, item.ProductoId, "venta", -item.Cantidad, stockActual, ventaId, cancellationToken);
-        }
+        var ventaId = await OperacionesCaja.RegistrarVentaAsync(
+            connection, transaction, cajaId, pago, items, cuentaId: null, cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
         return ventaId;
@@ -231,7 +194,7 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
             mensajeCerrada: "La venta es de una caja cerrada y ya no se puede anular.");
 
         var venta = await connection.QuerySingleAsync<VentaBloqueada>(new CommandDefinition(
-            "SELECT anulada, metodo_pago, total FROM gomorra.ventas WHERE id = @Id FOR UPDATE",
+            "SELECT anulada, pago_efectivo FROM gomorra.ventas WHERE id = @Id FOR UPDATE",
             new { Id = ventaId }, transaction, cancellationToken: cancellationToken));
 
         if (venta.Anulada)
@@ -239,10 +202,10 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
             throw new ConflictoException("La venta ya está anulada.");
         }
 
-        if (venta.MetodoPago == MetodosPago.Efectivo)
+        if (venta.PagoEfectivo > 0)
         {
             var caja = (await ObtenerAsync(connection, transaction, cajaId, cancellationToken))!;
-            if (venta.Total > caja.EfectivoEsperado)
+            if (venta.PagoEfectivo > caja.EfectivoEsperado)
             {
                 throw new ConflictoException(
                     $"No hay suficiente efectivo en caja para devolver la venta: hay {Pesos(caja.EfectivoEsperado)}.");
@@ -323,82 +286,10 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
         connection.QuerySingleOrDefaultAsync<CajaDto>(new CommandDefinition(
             $"{Select}\nWHERE c.id = @Id", new { Id = id }, transaction, cancellationToken: cancellationToken));
 
-    /// <summary>Bloquea la fila de la caja (FOR SHARE / FOR UPDATE) y exige que exista y esté abierta.</summary>
-    private static async Task BloquearCajaAbiertaAsync(
-        DbConnection connection,
-        DbTransaction transaction,
-        long cajaId,
-        string bloqueo,
-        CancellationToken cancellationToken,
-        string mensajeCerrada = "La caja está cerrada.")
-    {
-        var estado = await connection.ExecuteScalarAsync<string?>(new CommandDefinition(
-            $"SELECT estado FROM gomorra.cajas WHERE id = @Id {bloqueo}",
-            new { Id = cajaId }, transaction, cancellationToken: cancellationToken))
-            ?? throw new NoEncontradoException($"No existe la caja {cajaId}.");
-
-        if (estado != EstadosCaja.Abierta)
-        {
-            throw new ConflictoException(mensajeCerrada);
-        }
-    }
-
-    /// <summary>Asegura la fila de inventario del producto, la bloquea y devuelve su stock.</summary>
-    private static async Task<int> BloquearStockAsync(
-        DbConnection connection, DbTransaction transaction, long productoId, CancellationToken cancellationToken)
-    {
-        await connection.ExecuteAsync(new CommandDefinition(
-            "INSERT INTO gomorra.inventario (producto_id) VALUES (@ProductoId) ON CONFLICT (producto_id) DO NOTHING",
-            new { ProductoId = productoId }, transaction, cancellationToken: cancellationToken));
-
-        return await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-            "SELECT stock FROM gomorra.inventario WHERE producto_id = @ProductoId FOR UPDATE",
-            new { ProductoId = productoId }, transaction, cancellationToken: cancellationToken));
-    }
-
-    /// <summary>Aplica el cambio al stock (ya bloqueado) y deja el movimiento enlazado a la venta.</summary>
-    private static async Task MoverStockAsync(
-        DbConnection connection,
-        DbTransaction transaction,
-        long productoId,
-        string tipo,
-        int cantidad,
-        int stockActual,
-        long ventaId,
-        CancellationToken cancellationToken)
-    {
-        var stockResultante = stockActual + cantidad;
-
-        await connection.ExecuteAsync(new CommandDefinition(
-            """
-            UPDATE gomorra.inventario
-            SET stock = @StockResultante, actualizado_en = now()
-            WHERE producto_id = @ProductoId
-            """,
-            new { ProductoId = productoId, StockResultante = stockResultante },
-            transaction, cancellationToken: cancellationToken));
-
-        await connection.ExecuteAsync(new CommandDefinition(
-            """
-            INSERT INTO gomorra.movimientos_inventario (producto_id, tipo, cantidad, stock_resultante, venta_id)
-            VALUES (@ProductoId, @Tipo, @Cantidad, @StockResultante, @VentaId)
-            """,
-            new { ProductoId = productoId, Tipo = tipo, Cantidad = cantidad, StockResultante = stockResultante, VentaId = ventaId },
-            transaction, cancellationToken: cancellationToken));
-    }
-
-    private sealed class ProductoVenta
-    {
-        public string Nombre { get; init; } = string.Empty;
-        public decimal PrecioVenta { get; init; }
-        public bool Activo { get; init; }
-    }
-
     private sealed class VentaBloqueada
     {
         public bool Anulada { get; init; }
-        public string MetodoPago { get; init; } = string.Empty;
-        public decimal Total { get; init; }
+        public decimal PagoEfectivo { get; init; }
     }
 
     private sealed class LineaAnulada
@@ -407,7 +298,4 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
         public int Cantidad { get; init; }
     }
 
-    private static string Unidades(int n) => n == 1 ? "1 unidad" : $"{n} unidades";
-
-    private static string Pesos(decimal valor) => valor.ToString("C0", Colombia);
 }

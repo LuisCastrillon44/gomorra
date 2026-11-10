@@ -22,9 +22,10 @@ public interface ICajaRepository
 
     /// <summary>
     /// Registra la venta con el precio actual de cada producto y descuenta el inventario.
+    /// Solo vende lo disponible: stock menos lo pedido en cuentas abiertas.
     /// <paramref name="items"/> debe venir agrupado por producto.
     /// </summary>
-    Task<long> RegistrarVentaAsync(long cajaId, string metodoPago, IReadOnlyList<ItemVenta> items, CancellationToken cancellationToken);
+    Task<long> RegistrarVentaAsync(long cajaId, Pago pago, IReadOnlyList<ItemVenta> items, CancellationToken cancellationToken);
 
     /// <summary>Anula la venta y devuelve su stock al inventario.</summary>
     Task AnularVentaAsync(long ventaId, CancellationToken cancellationToken);

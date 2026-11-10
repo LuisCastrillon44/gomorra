@@ -12,7 +12,19 @@ public static class MetodosPago
 {
     public const string Efectivo = "efectivo";
     public const string Transferencia = "transferencia";
+
+    /// <summary>Parte en efectivo y parte por transferencia.</summary>
+    public const string Mixto = "mixto";
+
+    public const string Patron = "^(efectivo|transferencia|mixto)$";
+    public const string MensajePatron = "El método de pago debe ser efectivo, transferencia o mixto.";
 }
+
+/// <summary>
+/// Cómo se paga una venta. En efectivo o transferencia el monto es el total (lo calcula el servidor);
+/// en mixto se indican los dos montos y deben sumar el total.
+/// </summary>
+public sealed record Pago(string Metodo, decimal? Efectivo, decimal? Transferencia);
 
 public static class TiposMovimientoCaja
 {
@@ -62,6 +74,8 @@ public sealed class VentaDto
     public long CajaId { get; init; }
     public string MetodoPago { get; init; } = string.Empty;
     public decimal Total { get; init; }
+    public decimal PagoEfectivo { get; init; }
+    public decimal PagoTransferencia { get; init; }
     public bool Anulada { get; init; }
     public DateTime? AnuladaEn { get; init; }
     public DateTime CreadoEn { get; init; }
@@ -106,12 +120,26 @@ public sealed class CerrarCajaRequest
     public string? Nota { get; init; }
 }
 
-public sealed class RegistrarVentaRequest
+/// <summary>Datos de pago comunes a la venta directa y al cobro de una cuenta.</summary>
+public class PagoRequest
 {
     [Required(ErrorMessage = "El método de pago es obligatorio.")]
-    [RegularExpression("^(efectivo|transferencia)$", ErrorMessage = "El método de pago debe ser efectivo o transferencia.")]
+    [RegularExpression(MetodosPago.Patron, ErrorMessage = MetodosPago.MensajePatron)]
     public string MetodoPago { get; init; } = string.Empty;
 
+    /// <summary>Solo en pago mixto.</summary>
+    [Range(0.01, 9_999_999_999.99, ErrorMessage = "El monto en efectivo debe ser mayor que 0.")]
+    public decimal? PagoEfectivo { get; init; }
+
+    /// <summary>Solo en pago mixto.</summary>
+    [Range(0.01, 9_999_999_999.99, ErrorMessage = "El monto por transferencia debe ser mayor que 0.")]
+    public decimal? PagoTransferencia { get; init; }
+
+    public Pago ComoPago() => new(MetodoPago, PagoEfectivo, PagoTransferencia);
+}
+
+public sealed class RegistrarVentaRequest : PagoRequest
+{
     [Required(ErrorMessage = "La venta debe tener al menos un producto.")]
     [MinLength(1, ErrorMessage = "La venta debe tener al menos un producto.")]
     public List<ItemVentaRequest> Items { get; init; } = [];

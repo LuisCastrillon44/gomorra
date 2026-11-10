@@ -13,11 +13,19 @@ internal sealed class InventarioRepository(IDbConnectionFactory connectionFactor
                p.presentacion_ml, p.imagen_url, p.precio_venta, p.activo,
                COALESCE(i.stock, 0) AS stock,
                COALESCE(i.stock_minimo, 0) AS stock_minimo,
+               COALESCE(ec.en_cuentas, 0) AS en_cuentas,
+               COALESCE(i.stock, 0) - COALESCE(ec.en_cuentas, 0) AS disponible,
                (COALESCE(i.stock, 0) = 0
                 OR (COALESCE(i.stock_minimo, 0) > 0 AND i.stock <= i.stock_minimo)) AS por_reponer
         FROM gomorra.productos p
         JOIN gomorra.categorias c ON c.id = p.categoria_id
         LEFT JOIN gomorra.inventario i ON i.producto_id = p.id
+        LEFT JOIN LATERAL (
+            SELECT SUM(d.cantidad)::int AS en_cuentas
+            FROM gomorra.cuentas_detalle d
+            JOIN gomorra.cuentas cu ON cu.id = d.cuenta_id
+            WHERE cu.estado = 'abierta' AND d.producto_id = p.id
+        ) ec ON true
         """;
 
     public async Task<IReadOnlyList<InventarioItemDto>> ListarAsync(InventarioFiltro filtro, CancellationToken cancellationToken)

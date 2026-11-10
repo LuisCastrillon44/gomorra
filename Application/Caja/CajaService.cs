@@ -46,15 +46,38 @@ public sealed class CajaService(ICajaRepository repositorio)
             throw new ValidacionException("La venta debe tener al menos un producto.");
         }
 
-        // Un producto repetido se suma en una sola línea; el orden por id evita bloqueos cruzados entre ventas.
-        var items = request.Items
+        ValidarPago(request);
+
+        var ventaId = await repositorio.RegistrarVentaAsync(cajaId, request.ComoPago(), AgruparItems(request.Items), cancellationToken);
+        return await ObtenerVentaAsync(ventaId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Un producto repetido se suma en una sola línea; el orden por id evita bloqueos cruzados entre ventas.
+    /// </summary>
+    public static List<ItemVenta> AgruparItems(IEnumerable<ItemVentaRequest> items) =>
+        items
             .GroupBy(i => i.ProductoId)
             .Select(g => new ItemVenta(g.Key, g.Sum(i => i.Cantidad)))
             .OrderBy(i => i.ProductoId)
             .ToList();
 
-        var ventaId = await repositorio.RegistrarVentaAsync(cajaId, request.MetodoPago, items, cancellationToken);
-        return await ObtenerVentaAsync(ventaId, cancellationToken);
+    /// <summary>
+    /// Reglas del pago que no dependen del total: en mixto van los dos montos; si no, ninguno.
+    /// Que el mixto sume el total se valida al registrar la venta (el total lo calcula el servidor).
+    /// </summary>
+    public static void ValidarPago(PagoRequest request)
+    {
+        var mixto = request.MetodoPago == MetodosPago.Mixto;
+        if (mixto && (request.PagoEfectivo is null || request.PagoTransferencia is null))
+        {
+            throw new ValidacionException("En el pago mixto indica cuánto se paga en efectivo y cuánto por transferencia.");
+        }
+
+        if (!mixto && (request.PagoEfectivo is not null || request.PagoTransferencia is not null))
+        {
+            throw new ValidacionException("Los montos por medio de pago solo se indican en el pago mixto.");
+        }
     }
 
     public async Task<VentaDto> AnularVentaAsync(long ventaId, CancellationToken cancellationToken)

@@ -1,12 +1,26 @@
 using Application.Caja;
+using Application.Cuentas;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [ApiController]
 [Route("api/cajas")]
-public sealed class CajasController(CajaService servicio) : ControllerBase
+public sealed class CajasController(CajaService servicio, CuentaService cuentas) : ControllerBase
 {
+    /// <summary>Cuentas abiertas de la caja (mesas o clientes con pedidos por cobrar).</summary>
+    [HttpGet("{id:long}/cuentas")]
+    public Task<IReadOnlyList<CuentaDto>> ListarCuentas(long id, CancellationToken cancellationToken) =>
+        cuentas.ListarAbiertasAsync(id, cancellationToken);
+
+    /// <summary>Abre una cuenta, opcionalmente ya con productos.</summary>
+    [HttpPost("{id:long}/cuentas")]
+    public async Task<ActionResult<CuentaDto>> CrearCuenta(long id, CrearCuentaRequest request, CancellationToken cancellationToken)
+    {
+        var cuenta = await cuentas.CrearAsync(id, request, cancellationToken);
+        return CreatedAtAction(nameof(CuentasController.Obtener), "Cuentas", new { id = cuenta.Id }, cuenta);
+    }
+
     /// <summary>Historial de cajas cerradas, de la más reciente a la más antigua.</summary>
     [HttpGet]
     public Task<IReadOnlyList<CajaDto>> ListarCerradas([FromQuery] int limite = 30, CancellationToken cancellationToken = default) =>

@@ -14,6 +14,8 @@ internal sealed class ManejadorExcepciones(IProblemDetailsService problemDetails
             NoEncontradoException => (StatusCodes.Status404NotFound, "No encontrado"),
             ConflictoException => (StatusCodes.Status409Conflict, "Conflicto"),
             ValidacionException => (StatusCodes.Status400BadRequest, "Datos inválidos"),
+            NoAutorizadoException => (StatusCodes.Status401Unauthorized, "No autorizado"),
+            ProhibidoException => (StatusCodes.Status403Forbidden, "Prohibido"),
             _ => (0, string.Empty),
         };
 

@@ -26,6 +26,12 @@ public sealed class InventarioItemDto
     public int Stock { get; init; }
     public int StockMinimo { get; init; }
 
+    /// <summary>Unidades pedidas en cuentas abiertas (aún no descontadas del stock).</summary>
+    public int EnCuentas { get; init; }
+
+    /// <summary>Lo que se puede vender o pedir: stock menos lo que está en cuentas abiertas.</summary>
+    public int Disponible { get; init; }
+
     /// <summary>Agotado, o con mínimo definido y en o por debajo de él.</summary>
     public bool PorReponer { get; init; }
 }
