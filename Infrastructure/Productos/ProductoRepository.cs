@@ -9,7 +9,7 @@ namespace Infrastructure.Productos;
 internal sealed class ProductoRepository(IDbConnectionFactory connectionFactory) : IProductoRepository
 {
     private const string Select = """
-        SELECT p.id, p.categoria_id, c.nombre AS categoria_nombre, p.nombre, p.presentacion_ml,
+        SELECT p.id, p.categoria_id, c.nombre AS categoria_nombre, p.nombre, p.presentacion,
                p.precio_venta, p.precio_local, p.imagen_url, p.activo, p.creado_en, p.actualizado_en
         FROM gomorra.productos p
         JOIN gomorra.categorias c ON c.id = p.categoria_id
@@ -38,7 +38,7 @@ internal sealed class ProductoRepository(IDbConnectionFactory connectionFactory)
         }
 
         var where = condiciones.Count > 0 ? "WHERE " + string.Join(" AND ", condiciones) : string.Empty;
-        var sql = $"{Select}\n{where}\nORDER BY lower(p.nombre), p.presentacion_ml";
+        var sql = $"{Select}\n{where}\nORDER BY lower(p.nombre), lower(p.presentacion) NULLS FIRST";
 
         await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
         var filas = await connection.QueryAsync<ProductoDto>(
@@ -59,9 +59,9 @@ internal sealed class ProductoRepository(IDbConnectionFactory connectionFactory)
     {
         const string sql = """
             INSERT INTO gomorra.productos
-                (categoria_id, nombre, presentacion_ml, precio_venta, precio_local, imagen_url, activo)
+                (categoria_id, nombre, presentacion, precio_venta, precio_local, imagen_url, activo)
             VALUES
-                (@CategoriaId, @Nombre, @PresentacionMl, @PrecioVenta, @PrecioLocal, @ImagenUrl, @Activo)
+                (@CategoriaId, @Nombre, @Presentacion, @PrecioVenta, @PrecioLocal, @ImagenUrl, @Activo)
             RETURNING id
             """;
 
@@ -76,7 +76,7 @@ internal sealed class ProductoRepository(IDbConnectionFactory connectionFactory)
             UPDATE gomorra.productos
             SET categoria_id = @CategoriaId,
                 nombre = @Nombre,
-                presentacion_ml = @PresentacionMl,
+                presentacion = @Presentacion,
                 precio_venta = @PrecioVenta,
                 precio_local = @PrecioLocal,
                 imagen_url = @ImagenUrl,

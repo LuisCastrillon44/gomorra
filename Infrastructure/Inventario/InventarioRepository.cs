@@ -10,7 +10,7 @@ internal sealed class InventarioRepository(IDbConnectionFactory connectionFactor
     // Un producto sin fila en inventario cuenta como stock 0 y mínimo 0.
     private const string Select = """
         SELECT p.id AS producto_id, p.nombre, p.categoria_id, c.nombre AS categoria_nombre,
-               p.presentacion_ml, p.imagen_url, p.precio_venta, p.precio_local, p.activo,
+               p.presentacion, p.imagen_url, p.precio_venta, p.precio_local, p.activo,
                COALESCE(i.stock, 0) AS stock,
                COALESCE(i.stock_minimo, 0) AS stock_minimo,
                COALESCE(ec.en_cuentas, 0) AS en_cuentas,
@@ -56,7 +56,7 @@ internal sealed class InventarioRepository(IDbConnectionFactory connectionFactor
         }
 
         var where = condiciones.Count > 0 ? "WHERE " + string.Join(" AND ", condiciones) : string.Empty;
-        var sql = $"{Select}\n{where}\nORDER BY lower(p.nombre), p.presentacion_ml";
+        var sql = $"{Select}\n{where}\nORDER BY lower(p.nombre), lower(p.presentacion) NULLS FIRST";
 
         await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
         var filas = await connection.QueryAsync<InventarioItemDto>(

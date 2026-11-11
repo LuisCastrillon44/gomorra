@@ -19,7 +19,7 @@ public sealed class InventarioItemDto
     public string Nombre { get; init; } = string.Empty;
     public long CategoriaId { get; init; }
     public string CategoriaNombre { get; init; } = string.Empty;
-    public int? PresentacionMl { get; init; }
+    public string? Presentacion { get; init; }
     public string? ImagenUrl { get; init; }
     public decimal PrecioVenta { get; init; }
 

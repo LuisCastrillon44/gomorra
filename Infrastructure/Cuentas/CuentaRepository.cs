@@ -28,7 +28,7 @@ internal sealed class CuentaRepository(IDbConnectionFactory connectionFactory) :
         """;
 
     private const string SelectItems = """
-        SELECT d.cuenta_id, d.producto_id, p.nombre, p.presentacion_ml, p.imagen_url, d.cantidad,
+        SELECT d.cuenta_id, d.producto_id, p.nombre, p.presentacion, p.imagen_url, d.cantidad,
                p.precio_local AS precio_unitario, d.cantidad * p.precio_local AS subtotal
         FROM gomorra.cuentas_detalle d
         JOIN gomorra.productos p ON p.id = d.producto_id

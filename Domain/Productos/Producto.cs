@@ -5,7 +5,7 @@ public sealed class Producto
     public long Id { get; set; }
     public long CategoriaId { get; set; }
     public string Nombre { get; set; } = string.Empty;
-    public int? PresentacionMl { get; set; }
+    public string? Presentacion { get; set; }
     public decimal PrecioVenta { get; set; }
     /// <summary>Precio cuando el producto se consume en el local.</summary>
     public decimal PrecioLocal { get; set; }

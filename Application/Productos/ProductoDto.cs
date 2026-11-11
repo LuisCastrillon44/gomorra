@@ -8,7 +8,7 @@ public sealed class ProductoDto
     public long CategoriaId { get; init; }
     public string CategoriaNombre { get; init; } = string.Empty;
     public string Nombre { get; init; } = string.Empty;
-    public int? PresentacionMl { get; init; }
+    public string? Presentacion { get; init; }
     public decimal PrecioVenta { get; init; }
     public decimal PrecioLocal { get; init; }
     public string? ImagenUrl { get; init; } // TEMPORAL
@@ -28,8 +28,9 @@ public sealed class GuardarProductoRequest
     [StringLength(120, ErrorMessage = "El nombre admite máximo 120 caracteres.")]
     public string Nombre { get; init; } = string.Empty;
 
-    [Range(1, int.MaxValue, ErrorMessage = "La presentación debe ser mayor que 0 ml.")]
-    public int? PresentacionMl { get; init; }
+    /// <summary>Texto libre: Media, Botella, Litro, Garrafa, "350 ml"… Vacío = sin presentación.</summary>
+    [StringLength(40, ErrorMessage = "La presentación admite máximo 40 caracteres.")]
+    public string? Presentacion { get; init; }
 
     [Range(0, PrecioMaximo, ErrorMessage = "El precio de venta no puede ser negativo.")]
     public decimal PrecioVenta { get; init; }

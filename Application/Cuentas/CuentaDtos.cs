@@ -30,7 +30,7 @@ public sealed class CuentaItemDto
     public long CuentaId { get; init; }
     public long ProductoId { get; init; }
     public string Nombre { get; init; } = string.Empty;
-    public int? PresentacionMl { get; init; }
+    public string? Presentacion { get; init; }
     public string? ImagenUrl { get; init; }
     public int Cantidad { get; init; }
     public decimal PrecioUnitario { get; init; }

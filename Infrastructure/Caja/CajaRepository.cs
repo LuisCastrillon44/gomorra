@@ -40,7 +40,7 @@ internal sealed class CajaRepository(IDbConnectionFactory connectionFactory) : I
         """;
 
     private const string SelectDetalle = """
-        SELECT d.venta_id, d.producto_id, p.nombre AS producto_nombre, p.presentacion_ml,
+        SELECT d.venta_id, d.producto_id, p.nombre AS producto_nombre, p.presentacion,
                d.cantidad, d.precio_unitario, d.subtotal
         FROM gomorra.ventas_detalle d
         JOIN gomorra.productos p ON p.id = d.producto_id

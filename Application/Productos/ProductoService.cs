@@ -60,7 +60,7 @@ public sealed class ProductoService(IProductoRepository repositorio, ICategoriaR
         Id = id,
         CategoriaId = request.CategoriaId,
         Nombre = request.Nombre.Trim(),
-        PresentacionMl = request.PresentacionMl,
+        Presentacion = string.IsNullOrWhiteSpace(request.Presentacion) ? null : request.Presentacion.Trim(),
         PrecioVenta = request.PrecioVenta,
         PrecioLocal = request.PrecioLocal,
         ImagenUrl = string.IsNullOrWhiteSpace(request.ImagenUrl) ? null : request.ImagenUrl.Trim(),

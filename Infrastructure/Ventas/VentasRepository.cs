@@ -44,7 +44,7 @@ internal sealed class VentasRepository(IDbConnectionFactory connectionFactory) :
 
         var top = await connection.QueryAsync<ProductoVendidoDto>(new CommandDefinition(
             $"""
-            SELECT p.id AS producto_id, p.nombre, p.presentacion_ml,
+            SELECT p.id AS producto_id, p.nombre, p.presentacion,
                    SUM(d.cantidad)::int AS unidades, SUM(d.subtotal) AS total
             FROM gomorra.ventas_detalle d
             JOIN gomorra.ventas v ON v.id = d.venta_id
@@ -106,7 +106,7 @@ internal sealed class VentasRepository(IDbConnectionFactory connectionFactory) :
         {
             var detalle = await connection.QueryAsync<VentaDetalleDto>(new CommandDefinition(
                 """
-                SELECT d.venta_id, d.producto_id, p.nombre AS producto_nombre, p.presentacion_ml,
+                SELECT d.venta_id, d.producto_id, p.nombre AS producto_nombre, p.presentacion,
                        d.cantidad, d.precio_unitario, d.subtotal
                 FROM gomorra.ventas_detalle d
                 JOIN gomorra.productos p ON p.id = d.producto_id

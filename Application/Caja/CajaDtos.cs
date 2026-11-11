@@ -87,7 +87,7 @@ public sealed class VentaDetalleDto
     public long VentaId { get; init; }
     public long ProductoId { get; init; }
     public string ProductoNombre { get; init; } = string.Empty;
-    public int? PresentacionMl { get; init; }
+    public string? Presentacion { get; init; }
     public int Cantidad { get; init; }
     public decimal PrecioUnitario { get; init; }
     public decimal Subtotal { get; init; }

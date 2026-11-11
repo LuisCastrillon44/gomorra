@@ -34,7 +34,7 @@ public sealed class ProductoVendidoDto
 {
     public long ProductoId { get; init; }
     public string Nombre { get; init; } = string.Empty;
-    public int? PresentacionMl { get; init; }
+    public string? Presentacion { get; init; }
     public int Unidades { get; init; }
     public decimal Total { get; init; }
 }
